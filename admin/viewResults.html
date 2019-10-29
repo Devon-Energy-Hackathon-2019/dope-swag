@@ -1,0 +1,124 @@
+<html>
+<head>
+    <title>Dope Swag form viewer</title>
+</head>
+<body>
+  <div>
+    <a href="index.html" title="admin">admin</a> | <a href="viewResults.html" title="view results">view results</a>
+  </div>
+  <div>
+    <h2>welcome</h2>
+    <div style="display: flex; flex-direction: row;" >
+      <div>
+        <fieldset>
+          <legend>Completed Forms</legend>
+          <ul id="formsList">
+          </ul>
+        </fieldset>
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        <fieldset>
+          <legend>See the card</legend>
+          <div id="cardDiv"></div>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</body>
+
+
+<script src="azure-storage.table.js" charset="utf-8"></script>
+<script src="https://unpkg.com/adaptivecards/dist/adaptivecards.js"></script>
+<script type="text/javascript" src="https://unpkg.com/markdown-it/dist/markdown-it.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
+
+<script>
+let forms = [];
+let activeFormName = '';
+const tableUri = 'https://dopeswag.table.core.windows.net';
+const sasToken = '?sv=2019-02-02&ss=t&srt=sco&sp=rwdlacu&se=2019-11-30T23:21:06Z&st=2019-10-28T14:21:06Z&spr=https&sig=sfDJRB78MzQC8OyYqsV4o%2BmTLuAhs21cxzeVcVOM6Qo%3D';
+   
+
+  function getPotentialForms() {
+    const tableService = AzureStorage.Table.createTableServiceWithSas(tableUri, sasToken);
+    const tableQuery = new AzureStorage.Table.TableQuery().top(200);
+
+    tableService.queryEntities('formResults', tableQuery, null,  (error, results)=> {
+        if (error) {
+          console.log(error)
+        } else {
+            forms = results.entries.map(x =>{
+              return {
+                  form: (x.form ? JSON.parse(x.form._) : {}),
+                  data: (x.data ? JSON.parse(x.data._) : {}),
+                  time: x.Timestamp._,
+                  key: x.RowKey
+              } 
+            });
+
+            //foreach form build an anchor link
+            const list = document.getElementById('formsList')
+            for (let i in forms) {
+                let anchor = document.createElement("a");
+                anchor.href = "#" + forms[i].form.name;
+                anchor.innerText = forms[i].form.name + ' [' + forms[i].time.toLocaleString() + ']';
+                anchor.onclick = ()=> loadCard(forms[i].key); // 'loadCard(\'' + forms[i].name + '\')';
+
+                var elem = document.createElement("li");
+                elem.appendChild(anchor);
+                list.appendChild(elem);
+            }
+
+            this.bindCard(forms[0]);
+            console.log('found results');
+        }
+    });
+  }
+
+  function bindCard(formItem){
+    var adaptiveCard = new AdaptiveCards.AdaptiveCard();
+    adaptiveCard.hostConfig = new AdaptiveCards.HostConfig({
+      fontFamily: "Segoe UI, Helvetica Neue, sans-serif"
+      // More host config options
+    });
+
+    let cardDef = formItem.form.card;
+    //find data and put into card.
+    
+    for (var key in formItem.data) {
+        for(let x = 0; x < cardDef.body[0].columns.length; x++){
+            let col = cardDef.body[0].columns[x];
+            let item = _.find(col.items, ['id', key]);
+            if(item){
+                item.value = formItem.data[key];
+                break;
+            }
+        }
+    }
+  
+    adaptiveCard.parse(cardDef);
+
+    var renderedCard = adaptiveCard.render();
+    const root = document.getElementById('cardDiv');
+    if(root.childNodes && root.childNodes.length > 0){
+       root.removeChild(root.childNodes[0]);
+    }
+
+    //put the HTML of the card in the doc
+    root.appendChild(renderedCard);
+
+    //put the values into the card too.
+  }
+
+  function loadCard(key){
+    let card = _.find(forms, ['key', key]);
+    if(card){
+    activeFormName = card.form.name;
+    }
+    bindCard(card);
+  }
+
+  //kick off potential forms
+  getPotentialForms();
+  </script>
+  </html>
