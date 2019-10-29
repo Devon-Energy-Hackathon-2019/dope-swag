@@ -1,0 +1,152 @@
+<html>
+  <head>
+    <title>Dope Swag admin</title>
+
+    <script src="azure-storage.table.js" charset="utf-8"></script>
+
+    <script src="https://unpkg.com/markdown-it@8.4.0/dist/markdown-it.min.js"></script>
+    <script src="https://unpkg.com/monaco-editor@0.17.1/min/vs/loader.js"></script>
+    <script src="https://unpkg.com/adaptivecards-designer@latest/dist/adaptivecards-designer.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
+  </head>
+  <body>
+      <div>
+        <a href="index.html" title="admin">admin</a> | <a href="viewResults.html" title="view results">view results</a>
+      </div>
+      <div>
+      <h2>welcome</h2>
+      <div style="display: flex; flex-direction: row;">
+        <div>
+          <fieldset>
+            <legend>Available Forms</legend>
+            <ul id="formsList"></ul>
+          </fieldset>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <legend>Selected Form</legend>
+          <div>
+            <input type="button" onclick="saveForm()" value="save" />
+            <input type="button" onclick="newForm()" value="new" />
+          </div>
+          <div>
+            <label>name: <input type="text" id="name" title="form name" /></label>
+          </div>
+          <div id="cardDiv"></div>
+          <div>
+            <input type="button" onclick="saveForm()" value="save" />
+            <input type="button" onclick="newForm()" value="new" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    (function() {
+      var self = this;
+
+      const tableUri = "https://dopeswag.table.core.windows.net";
+      const sasToken =
+        "?sv=2019-02-02&ss=t&srt=sco&sp=rwdlacu&se=2019-11-30T23:21:06Z&st=2019-10-28T14:21:06Z&spr=https&sig=sfDJRB78MzQC8OyYqsV4o%2BmTLuAhs21cxzeVcVOM6Qo%3D";
+
+      self.tableService = AzureStorage.Table.createTableServiceWithSas(
+        tableUri,
+        sasToken
+      );
+      self.designer = null;
+      self.nameInput = document.getElementById("name");
+      self.forms = [];
+      self.currForm = null;
+
+      self.renderFormsList = function() {
+        const list = document.getElementById("formsList");
+        for (let i in self.forms) {
+          const name = self.forms[i].Data._.name;
+          let anchor = document.createElement("a");
+          anchor.href = "#" + name;
+          anchor.innerText = name;
+          anchor.onclick = () => loadCard(name);
+
+          const elem = document.createElement("li");
+          elem.appendChild(anchor);
+          list.appendChild(elem);
+        }
+      };
+
+      self.getForms = function() {
+        var tableQuery = new AzureStorage.Table.TableQuery().top(200);
+
+        self.tableService.queryEntities("formDefinitions", tableQuery, null, (error, results) => {
+          if (error) {
+            console.log(error);
+          } else {
+            self.forms = results.entries.map(x => {
+              x.Data._ = JSON.parse(x.Data._);
+              return x;
+            });
+            renderFormsList();
+            self.loadCard(self.forms[0].Data._.name);
+            console.log("found results");
+          }
+        });
+      };
+
+      self.saveForm = function() {
+        self.currForm.Data._.name = self.nameInput.value;
+        self.currForm.Data._.card = self.designer.getCard();
+        self.currForm.Data._ = JSON.stringify(self.currForm.Data._);
+        self.tableService.insertOrReplaceEntity("formDefinitions", self.currForm, null, (x, y, z) => {
+            console.log("hoo-ray!");
+          }
+        );
+      };
+
+      this.uuidv4 = function() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+          var r = (Math.random() * 16) | 0,
+            v = c == "x" ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      };
+
+      self.newForm = function() {
+        self.designer.newCard();
+
+        self.nameInput.value = "new form";
+        this.currForm = {
+          Data: { _: { name: "new form", card: self.designer.getCard() } },
+          PartitionKey: { $: "Edm.String", _: "1" },
+          RowKey: { $: "Edm.String", _: this.uuidv4() },
+          Timestamp: { $: "Edm.DateTime", _: new Date() }
+        };
+      };
+
+      self.loadCard = function(cardName) {
+        if (cardName) {
+          self.currForm = _.find(self.forms, x => x.Data._.name === cardName);
+          if (self.currForm) {
+            self.nameInput.value = self.currForm.Data._.name;
+            self.designer.setCard(self.currForm.Data._.card);
+          }
+        }
+      };
+
+      self.hostContainers = [];
+      self.designer = new ACDesigner.CardDesigner(hostContainers);
+      self.designer.assetPath = "https://unpkg.com/adaptivecards-designer@latest/dist";
+
+      require.config({
+        paths: { vs: "https://unpkg.com/monaco-editor@0.17.1/min/vs" }
+      });
+
+      require(["vs/editor/editor.main"], function() {
+        self.designer.monacoModuleLoaded();
+      });
+
+      self.designer.attachTo(document.getElementById("cardDiv"));
+
+      self.getForms();
+    })();
+  </script>
+</html>
