@@ -1,14 +1,13 @@
 <html>
   <head>
-    <title>dope forms admin viewer</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dope forms client filler</title>
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
 
     <script src="azure-storage.table.js" charset="utf-8"></script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/10.0.0/markdown-it.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/markdown-it/dist/markdown-it.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
 
     <script src="https://unpkg.com/adaptivecards/dist/adaptivecards.js"></script>
@@ -25,10 +24,10 @@
     <div class="mdl-layout mdl-js-layout">
       <header class="mdl-layout__header">
         <div class="mdl-layout__header-row">
-          <h1 class="mdl-layout-title">dope forms admin viewer</h1>
+          <h1 class="mdl-layout-title">dope forms client filler</h1>
           <div class="mdl-layout-spacer"></div>
           <nav class="mdl-navigation">
-            <a class="mdl-navigation__link" href="index.html" title="admin">admin</a>
+            <a class="mdl-navigation__link" href="index.html" title="filler">filler</a>
             <a class="mdl-navigation__link" href="viewResults.html" title="view results">view results</a>
           </nav>
         </div>
@@ -37,14 +36,14 @@
       <main class="mdl-layout__content">
         <div class="mdl-grid">
           <div class="mdl-cell mdl-cell--3-col">
-            <span class="mdl-layout-title">all completed forms</span>
+            <span class="mdl-layout-title">all created forms</span>
             <ul class="mdl-list" id="formsList">
             </ul>
           </div>
           <div class="mdl-cell mdl-cell--9-col">
             <div class="demo-card-wide mdl-card mdl-shadow--2dp">
               <div class="mdl-card__title">
-                <h2 class="mdl-card__title-text">selected completed form</h2>
+                <h2 class="mdl-card__title-text">selected form</h2>
               </div>
               <div class="mdl-card__supporting-text">
                 <div id="cardDiv"></div>
@@ -66,25 +65,21 @@
       const tableService = AzureStorage.Table.createTableServiceWithSas(tableUri, sasToken);
       const tableQuery = new AzureStorage.Table.TableQuery().top(200);
 
-      tableService.queryEntities('formResults', tableQuery, null,  (error, results) => {
+      tableService.queryEntities('formDefinitions', tableQuery, null,  (error, results) => {
         if (error) {
-          console.log(error)
+          console.log(error);
         } else {
           forms = results.entries.map(x => {
-            return {
-              form: (x.form ? JSON.parse(x.form._) : {}),
-              data: (x.data ? JSON.parse(x.data._) : {}),
-              time: x.Timestamp._,
-              key: x.RowKey
-            }
+            return JSON.parse(x.Data._);
           });
 
-          const list = document.getElementById('formsList');
+          //foreach form build an anchor link
+          const list = document.getElementById('formsList')
           for (let i in forms) {
             let anchor = document.createElement("a");
-            anchor.href = "#" + forms[i].form.name;
-            anchor.innerText = forms[i].form.name + ' [' + forms[i].time.toLocaleString() + ']';
-            anchor.onclick = ()=> loadCard(forms[i].key);
+            anchor.href = "#" + forms[i].name;
+            anchor.innerText = forms[i].name;
+            anchor.onclick = ()=> loadCard(forms[i].name);
             anchor.className = "mdl-list__item-secondary-action";
 
             var elem = document.createElement("li");
@@ -99,52 +94,62 @@
       });
     }
 
-    function bindCard(formItem){
+    function bindCard(card){
       var adaptiveCard = new AdaptiveCards.AdaptiveCard();
       adaptiveCard.hostConfig = new AdaptiveCards.HostConfig({
         fontFamily: "Segoe UI, Helvetica Neue, sans-serif"
+        // More host config options
       });
-
-      let cardDef = formItem.form.card;
-      
-      for (var key in formItem.data) {
-        for (var body of cardDef.body) {
-          if (body.columns) {
-            for (var col of body.columns) {
-              let item = _.find(col.items, ['id', key]);
-              if (item) {
-                item.value = formItem.data[key];
-                break;
-              }
-            }
-          } 
-          
-          if (body["id"] === key) {
-            body.value = formItem.data[key];
-            break;
-          }
-        }
-      }
-    
-      adaptiveCard.parse(cardDef);
+      adaptiveCard.parse(card.card);
+      adaptiveCard.onExecuteAction = (action) => acquireAndSend(action);
 
       var renderedCard = adaptiveCard.render();
       const root = document.getElementById('cardDiv');
-      if (root.childNodes && root.childNodes.length > 0) {
+      if(root.childNodes && root.childNodes.length > 0){
         root.removeChild(root.childNodes[0]);
       }
-
       root.appendChild(renderedCard);
     }
 
-    function loadCard(key){
-      let card = _.find(forms, ['key', key]);
-      if (card) {
-        activeFormName = card.form.name;
+    function loadCard(cardName){
+      let card = _.find(forms, ['name', cardName]);
+      if(card){
+      activeFormName = cardName;
       }
       bindCard(card);
     }
 
+    function acquireAndSend(actionObj) {
+      if(!actionObj.data) return;
+
+      let toSend = {
+        form: { '_': JSON.stringify(_.find(forms, ['name', activeFormName])) },
+        data: { '_': JSON.stringify(actionObj.data) },
+        PartitionKey: { '_': activeFormName },
+        RowKey: { '_': uuidv4() }
+      }
+
+      const tableService = AzureStorage.Table.createTableServiceWithSas(tableUri, sasToken);
+      tableService.insertOrReplaceEntity('formResults', toSend, function(error, result, response) {
+        if(error) {
+          // Insert table entity error
+          console.log(error)
+        } else {
+          // Insert table entity successfully
+          console.log(result)
+          console.log(response)
+          alert('Saved')
+        }
+      });
+    }
+
+    //for generating UUIDs that are decent
+    // https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+    function uuidv4() {
+      return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+    }
+
+    //kick off potential forms
     getPotentialForms();
   </script>
 </html>

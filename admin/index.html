@@ -1,44 +1,65 @@
 <html>
   <head>
-    <title>Dope Swag admin</title>
+    <title>dope forms admin designer</title>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
 
     <script src="azure-storage.table.js" charset="utf-8"></script>
 
-    <script src="https://unpkg.com/markdown-it@8.4.0/dist/markdown-it.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/10.0.0/markdown-it.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
+
     <script src="https://unpkg.com/monaco-editor@0.17.1/min/vs/loader.js"></script>
     <script src="https://unpkg.com/adaptivecards-designer@latest/dist/adaptivecards-designer.min.js"></script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js"></script>
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
+    <style>
+      .demo-card-wide.mdl-card {
+        width: 1024px;
+      }
+    </style>
   </head>
   <body>
-      <div>
-        <a href="index.html" title="admin">admin</a> | <a href="viewResults.html" title="view results">view results</a>
-      </div>
-      <div>
-      <h2>welcome</h2>
-      <div style="display: flex; flex-direction: row;">
-        <div>
-          <fieldset>
-            <legend>Available Forms</legend>
-            <ul id="formsList"></ul>
-          </fieldset>
+    <div class="mdl-layout mdl-js-layout">
+      <header class="mdl-layout__header">
+        <div class="mdl-layout__header-row">
+          <h1 class="mdl-layout-title">dope forms admin designer</h1>
+          <div class="mdl-layout-spacer"></div>
+          <nav class="mdl-navigation">
+            <a class="mdl-navigation__link" href="index.html" title="admin">admin</a>
+            <a class="mdl-navigation__link" href="viewResults.html" title="view results">view results</a>
+          </nav>
         </div>
-        <div style="display: flex; flex-direction: column;">
-          <legend>Selected Form</legend>
-          <div>
-            <input type="button" onclick="saveForm()" value="save" />
-            <input type="button" onclick="newForm()" value="new" />
+      </header>
+
+      <main class="mdl-layout__content">
+        <div class="mdl-grid">
+          <div class="mdl-cell mdl-cell--3-col">
+            <span class="mdl-layout-title">all created forms</span>
+            <ul class="mdl-list" id="formsList">
+            </ul>
           </div>
-          <div>
-            <label>name: <input type="text" id="name" title="form name" /></label>
-          </div>
-          <div id="cardDiv"></div>
-          <div>
-            <input type="button" onclick="saveForm()" value="save" />
-            <input type="button" onclick="newForm()" value="new" />
+          <div class="mdl-cell mdl-cell--9-col">
+            <div class="demo-card-wide mdl-card mdl-shadow--2dp">
+              <div class="mdl-card__title">
+                <h2 class="mdl-card__title-text">selected form</h2>
+              </div>
+              <div class="mdl-card__supporting-text">
+                <div>
+                  <label>name: <input type="text" id="name" title="form name" /></label>
+                </div>
+                <div id="cardDiv"></div>
+              </div>
+              <div class="mdl-card__actions mdl-card--border">
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" onclick="saveForm()">save</button>
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" onclick="newForm()">new</button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   </body>
 
@@ -67,8 +88,10 @@
           anchor.href = "#" + name;
           anchor.innerText = name;
           anchor.onclick = () => loadCard(name);
+          anchor.className = "mdl-list__item-secondary-action";
 
           const elem = document.createElement("li");
+          elem.className = "mdl-list__item";
           elem.appendChild(anchor);
           list.appendChild(elem);
         }
