@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>dope forms admin viewer</title>
+    <title>dope forms client viewer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
@@ -25,10 +25,10 @@
     <div class="mdl-layout mdl-js-layout">
       <header class="mdl-layout__header">
         <div class="mdl-layout__header-row">
-          <h1 class="mdl-layout-title">dope forms admin viewer</h1>
+          <h1 class="mdl-layout-title">dope forms client viewer</h1>
           <div class="mdl-layout-spacer"></div>
           <nav class="mdl-navigation">
-            <a class="mdl-navigation__link" href="index.html" title="admin">admin</a>
+            <a class="mdl-navigation__link" href="index.html" title="filler">filler</a>
             <a class="mdl-navigation__link" href="viewResults.html" title="view results">view results</a>
           </nav>
         </div>
@@ -106,7 +106,7 @@
       });
 
       let cardDef = formItem.form.card;
-      
+
       for (var key in formItem.data) {
         for (var body of cardDef.body) {
           if (body.columns) {
@@ -117,15 +117,15 @@
                 break;
               }
             }
-          } 
-          
+          }
+
           if (body["id"] === key) {
             body.value = formItem.data[key];
             break;
           }
         }
       }
-    
+
       adaptiveCard.parse(cardDef);
 
       var renderedCard = adaptiveCard.render();
